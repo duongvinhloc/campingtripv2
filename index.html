@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camping Trip Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>🏕️ Camping Trip Planner- TEAM LU 0815</h1>
+  <div class="header-actions">
+    <span id="status-indicator" class="status-indicator">Đang tải...</span>
+    <button id="refresh-btn" title="Tải lại dữ liệu">⟳ Làm mới</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="tasks">✅ Chuẩn bị đồ</button>
+  <button class="tab-btn" data-tab="expenses">💸 Chia tiền</button>
+  <button class="tab-btn" data-tab="members">👥 Thành viên</button>
+</nav>
+
+<main>
+  <!-- TAB: TASKS -->
+  <section id="tab-tasks" class="tab-panel active">
+    <form id="task-form" class="card form-row">
+      <input type="text" id="task-group" list="task-group-list" placeholder="Nhóm việc (VD: Đồ ăn)">
+      <datalist id="task-group-list">
+        <option value="Lều & ngủ nghỉ">
+        <option value="Đồ ăn & nước uống">
+        <option value="Nấu nướng">
+        <option value="Di chuyển">
+        <option value="Giải trí">
+        <option value="Khác">
+      </datalist>
+      <input type="text" id="task-name" placeholder="Hạng mục (VD: Mang lều)" required>
+      <select id="task-assignee"></select>
+      <input type="number" id="task-quantity" placeholder="Số lượng" min="0" step="1">
+      <input type="text" id="task-note" placeholder="Ghi chú (không bắt buộc)">
+      <button type="submit">+ Thêm hạng mục</button>
+    </form>
+
+    <div class="card">
+      <h2>📈 Tiến độ chuẩn bị theo người</h2>
+      <div id="progress-list" class="progress-list"></div>
+      <p id="progress-empty" class="empty-msg" hidden>Chưa có công việc nào được gán cho ai.</p>
+    </div>
+
+    <div class="card">
+      <div class="filter-bar">
+        <label for="task-filter-assignee">Lọc theo người phụ trách</label>
+        <select id="task-filter-assignee"></select>
+      </div>
+      <table id="task-table">
+        <thead>
+          <tr>
+            <th>Nhóm</th>
+            <th>Hạng mục</th>
+            <th>Người phụ trách</th>
+            <th>Số lượng</th>
+            <th>Trạng thái</th>
+            <th>Ghi chú</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="task-tbody"></tbody>
+      </table>
+      <p id="task-empty" class="empty-msg" hidden>Chưa có công việc nào. Thêm việc đầu tiên ở trên nhé!</p>
+    </div>
+  </section>
+
+  <!-- TAB: EXPENSES -->
+  <section id="tab-expenses" class="tab-panel">
+    <form id="expense-form" class="card form-grid">
+      <input type="text" id="exp-desc" placeholder="Khoản chi (VD: Đổ xăng, mua đồ ăn)" required>
+      <input type="number" id="exp-amount" placeholder="Số tiền" min="0" step="1" required>
+      <select id="exp-payer" required></select>
+      <div id="exp-participants" class="checkbox-group"></div>
+      <p class="hint">Chọn đủ tất cả thành viên: tiền sẽ chia theo tỉ lệ số người mỗi gia đình. Chỉ chọn một phần thành viên: chia đều cho những người được chọn.</p>
+      <input type="text" id="exp-note" placeholder="Ghi chú (không bắt buộc)">
+      <button type="submit">+ Thêm khoản chi</button>
+    </form>
+
+    <div class="card">
+      <h2>📊 Tổng kết chia tiền</h2>
+      <div class="stat-row">
+        <div class="stat-tile stat-tile-total">
+          <span class="stat-label">💵 Tổng số tiền đã chi cả nhóm</span>
+          <span class="stat-value" id="expense-total">¥0</span>
+          <span class="stat-split">
+            <span class="paid-split-item">chung <span id="expense-total-full">¥0</span></span>
+            <span class="paid-split-item">riêng <span id="expense-total-partial">¥0</span></span>
+          </span>
+        </div>
+        <div class="stat-tile stat-tile-avg" id="full-group-avg-tile" hidden>
+          <span class="stat-label">🧮 Chia đều / người (<span id="full-group-people-count"></span> người)</span>
+          <span class="stat-value" id="full-group-avg">¥0</span>
+        </div>
+      </div>
+
+      <h3>💰 Số tiền mỗi người đã trả</h3>
+      <div id="paid-per-member" class="paid-grid"></div>
+
+      <h3>⚖️ Số dư mỗi người</h3>
+      <div id="balance-breakdown" class="balance-breakdown"></div>
+    </div>
+    <div class="card">
+      <h2>🤝 Ai cần trả ai</h2>
+      <p class="hint">Đã gộp và bù trừ — làm theo danh sách này để chuyển tiền ít lần nhất.</p>
+      <ul id="settlement-list"></ul>
+      <p id="settlement-empty" class="empty-msg" hidden>Mọi người đã huề nhau 🎉</p>
+    </div>
+    <div class="card">
+      <h2>🧾 Khoản chia riêng (không chia đều cả nhóm)</h2>
+      <table id="partial-expense-table">
+        <thead>
+          <tr>
+            <th>Khoản chi</th>
+            <th>Số tiền</th>
+            <th>Người trả</th>
+            <th>Chia cho</th>
+            <th>Mỗi người</th>
+          </tr>
+        </thead>
+        <tbody id="partial-expense-tbody"></tbody>
+      </table>
+      <p id="partial-expense-empty" class="empty-msg" hidden>Chưa có khoản chi riêng — tất cả đều chia đều cả nhóm.</p>
+    </div>
+
+
+
+    <div class="card">
+      <h2>📋 Danh sách khoản chi</h2>
+      <table id="expense-table">
+        <thead>
+          <tr>
+            <th>Khoản chi</th>
+            <th>Số tiền</th>
+            <th>Người trả</th>
+            <th>Chia cho</th>
+            <th>Ghi chú</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="expense-tbody"></tbody>
+      </table>
+      <p id="expense-empty" class="empty-msg" hidden>Chưa có khoản chi nào.</p>
+    </div>
+  </section>
+
+  <!-- TAB: MEMBERS -->
+  <section id="tab-members" class="tab-panel">
+    <form id="member-form" class="card form-row">
+      <input type="text" id="member-name" placeholder="Tên thành viên (VD: Ngọc)" required>
+      <input type="number" id="member-family-size" placeholder="Số người trong gia đình (mặc định 1)" min="1" step="1">
+      <button type="submit">+ Thêm thành viên</button>
+    </form>
+    <p class="hint">Mỗi thành viên có thể là đại diện cho cả gia đình (VD: gia đình 2 người, gia đình 3 người). Số người này dùng để chia tiền theo tỉ lệ khi khoản chi được chia cho tất cả thành viên.</p>
+    <div class="card">
+      <ul id="member-list" class="member-list"></ul>
+      <p id="member-empty" class="empty-msg" hidden>Chưa có thành viên nào. Thêm ở trên để bắt đầu.</p>
+    </div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
