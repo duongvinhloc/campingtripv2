@@ -12,7 +12,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🏕️ Camping Trip Planner- TEAM LU 0815</h1>
+  <h1>🏕️ Camping Trip Planner</h1>
   <div class="header-actions">
     <span id="status-indicator" class="status-indicator">Đang tải...</span>
     <button id="refresh-btn" title="Tải lại dữ liệu">⟳ Làm mới</button>
@@ -97,11 +97,19 @@
             <span class="paid-split-item">riêng <span id="expense-total-partial">¥0</span></span>
           </span>
         </div>
+        <div class="stat-tile stat-tile-fund">
+          <span class="stat-label">🏦 Quỹ nhóm đã góp trước</span>
+          <input type="number" id="fund-amount" class="fund-input" min="0" step="1" placeholder="0" value="0">
+          <span class="stat-note" id="fund-net-line" hidden>
+            còn lại cần chia (chung): <strong id="fund-net-amount">¥0</strong>
+          </span>
+        </div>
         <div class="stat-tile stat-tile-avg" id="full-group-avg-tile" hidden>
           <span class="stat-label">🧮 Chia đều / người (<span id="full-group-people-count"></span> người)</span>
           <span class="stat-value" id="full-group-avg">¥0</span>
         </div>
       </div>
+      <p class="hint">Quỹ là tiền cả nhóm đã góp sẵn từ trước (VD: mỗi người góp trước 1 khoản) — nhập vào đây để trừ thẳng vào tổng chi CHUNG trước khi chia, phần còn lại mới đem chia theo tỉ lệ gia đình. Chỉ lưu trên máy bạn (không đồng bộ qua Google Sheet), người khác mở app sẽ không thấy số quỹ này.</p>
 
       <h3>💰 Số tiền mỗi người đã trả</h3>
       <div id="paid-per-member" class="paid-grid"></div>
