@@ -87,6 +87,19 @@
     </form>
 
     <div class="card">
+      <h2>🏦 Quỹ nhóm (đã góp trước)</h2>
+      <p class="hint">Tiền cả nhóm đã góp sẵn từ trước chuyến đi (VD: mỗi người góp trước 1 khoản). Tổng quỹ được trừ thẳng vào tổng chi CHUNG trước khi chia, phần còn lại mới đem chia theo tỉ lệ gia đình. Lưu chung trên Google Sheet — ai mở app cũng thấy giống nhau.</p>
+      <form id="fund-form" class="form-row">
+        <input type="number" id="fund-amount-input" placeholder="Số tiền góp" min="0" step="1" required>
+        <input type="text" id="fund-note" placeholder="Ghi chú (không bắt buộc)">
+        <button type="submit">+ Thêm khoản góp quỹ</button>
+      </form>
+      <ul id="fund-list" class="member-list"></ul>
+      <p id="fund-empty" class="empty-msg" hidden>Chưa có khoản góp quỹ nào.</p>
+      <p class="total-line">Tổng quỹ: <strong id="fund-total-line">¥0</strong></p>
+    </div>
+
+    <div class="card">
       <h2>📊 Tổng kết chia tiền</h2>
       <div class="stat-row">
         <div class="stat-tile stat-tile-total">
@@ -99,7 +112,7 @@
         </div>
         <div class="stat-tile stat-tile-fund">
           <span class="stat-label">🏦 Quỹ nhóm đã góp trước</span>
-          <input type="number" id="fund-amount" class="fund-input" min="0" step="1" placeholder="0" value="0">
+          <span class="stat-value" id="fund-total">¥0</span>
           <span class="stat-note" id="fund-net-line" hidden>
             còn lại cần chia (chung): <strong id="fund-net-amount">¥0</strong>
           </span>
@@ -109,7 +122,6 @@
           <span class="stat-value" id="full-group-avg">¥0</span>
         </div>
       </div>
-      <p class="hint">Quỹ là tiền cả nhóm đã góp sẵn từ trước (VD: mỗi người góp trước 1 khoản) — nhập vào đây để trừ thẳng vào tổng chi CHUNG trước khi chia, phần còn lại mới đem chia theo tỉ lệ gia đình. Chỉ lưu trên máy bạn (không đồng bộ qua Google Sheet), người khác mở app sẽ không thấy số quỹ này.</p>
 
       <h3>💰 Số tiền mỗi người đã trả</h3>
       <div id="paid-per-member" class="paid-grid"></div>
