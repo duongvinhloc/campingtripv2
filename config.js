@@ -3,4 +3,4 @@
 const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
 
 // Dán URL Web App (kết thúc bằng /exec) sau khi deploy Apps Script vào đây.
-const APPS_SCRIPT_URL ='https://script.google.com/macros/s/AKfycbzSG9AWrDAaO0xiT02bM8Es64lL-O_3zQLtJZ1dRFXKcC1Jw8loj5AOFxfnReuA5RxT/exec';
+const APPS_SCRIPT_URL ='https://script.google.com/macros/s/AKfycbxdOYmCSNRRS7vMg3h-CRXzjossrbLPJCJrSg_ejRv1JwGQh7q6bmPYweEj4Ef8hyK4/exec';
