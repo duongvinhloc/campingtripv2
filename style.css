@@ -393,6 +393,27 @@ select.status-select {
   border-color: var(--accent);
 }
 
+.stat-tile-fund {
+  background: linear-gradient(135deg, var(--warn-soft) 0%, var(--bg-accent) 100%);
+  border-color: var(--warn);
+}
+
+.fund-input {
+  width: 100%;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--card-bg);
+}
+
+.stat-note {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.stat-note strong { color: var(--primary-dark); }
+
 .stat-label {
   display: block;
   font-size: 0.72rem;
@@ -509,37 +530,6 @@ select.status-select {
   font-weight: 700;
 }
 
-/* Danh sách "chi tiết ai nợ ai" — thông tin phụ, hiển thị nhẹ hơn so với
-   #settlement-list (bản tổng hợp cuối cùng, là phần quan trọng nhất cần nổi bật). */
-.settlement-detail-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 20px;
-}
-.settlement-detail-list li {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 4px;
-  border-bottom: 1px dashed var(--border);
-  font-size: 0.86rem;
-}
-.settlement-detail-list li:last-child { border-bottom: none; }
-.settlement-detail-list .settle-main {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-}
-.settlement-detail-list .settle-name {
-  font-weight: 600;
-  color: var(--text);
-}
-.settlement-detail-list .settle-amount {
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
 .settle-formula {
   font-size: 0.78rem;
   font-style: italic;
@@ -601,6 +591,16 @@ select.status-select {
   padding: 4px 10px;
 }
 
+/* Dòng cộng dồn: liệt kê từng khoản nợ với từng người ra tổng cuối cùng. */
+.balance-row-pairwise {
+  padding-top: 0;
+  padding-left: 76px;
+}
+.balance-row-pairwise .balance-row-formula {
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
 .balance-row-name {
   font-weight: 700;
   min-width: 64px;
@@ -656,7 +656,7 @@ select.status-select {
   .filter-bar select { min-width: 0; width: 100%; }
 
   .balance-row-result { margin-left: 0; }
-  .balance-row-adjust { padding-left: 16px; }
+  .balance-row-adjust, .balance-row-pairwise { padding-left: 16px; }
 
   /* Bảng chuyển thành danh sách thẻ, tránh phải kéo ngang trên màn hình nhỏ */
   table thead { display: none; }
