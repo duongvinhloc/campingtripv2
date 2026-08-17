@@ -6,6 +6,12 @@ let taskFilterAssignee = '';
 const UNASSIGNED_FILTER_VALUE = '__unassigned__';
 const UNASSIGNED_LABEL = 'Chưa phân công';
 
+// Quỹ nhóm đã góp trước (VD: mỗi người góp sẵn 1 khoản trước chuyến đi). Chỉ nhập trên màn
+// hình và tính bằng JS — không qua api.js/Google Sheet — nên chỉ hiện trên máy đã nhập,
+// không đồng bộ cho người khác trong nhóm.
+const FUND_STORAGE_KEY = 'campingFundAmount';
+let fundAmount = Math.max(0, Number(localStorage.getItem(FUND_STORAGE_KEY)) || 0);
+
 // Poll version (rẻ, chỉ 1 số) thường xuyên hơn hẳn; chỉ tải lại toàn bộ data khi version đổi.
 const VERSION_POLL_INTERVAL_MS = 4000;
 let lastVersion = null;
@@ -343,6 +349,25 @@ function isFullGroupExpense(x) {
     members.every(m => participants.includes(m.name));
 }
 
+// Tỉ lệ còn lại của các khoản chi CHUNG cả nhóm sau khi trừ thẳng quỹ đã góp trước
+// (quỹ chỉ áp dụng lên phần chia đều cả nhóm, không đụng tới các khoản chia riêng).
+// Nhân mỗi khoản chi chung với tỉ lệ này trước khi chia theo tỉ lệ gia đình, để tổng owed
+// luôn khớp đúng (tổng chi chung − quỹ) dù có 1 hay nhiều khoản chi chung.
+function fullGroupRatio() {
+  const raw = expenses.filter(isFullGroupExpense).reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+  if (raw <= 0) return 1;
+  return Math.max(0, raw - fundAmount) / raw;
+}
+
+const fundInput = document.getElementById('fund-amount');
+fundInput.value = fundAmount || '';
+fundInput.addEventListener('input', () => {
+  fundAmount = Math.max(0, Number(fundInput.value) || 0);
+  localStorage.setItem(FUND_STORAGE_KEY, String(fundAmount));
+  renderExpenseBreakdown();
+  renderBalances();
+});
+
 const SELF_PAID_KEY = '__self__';
 
 // Các khoản chia riêng mà một người tham gia, gộp theo tên người đã trả — để biết cụ thể
@@ -433,9 +458,12 @@ function splitFairly(total, weights) {
 
 // Tổng số tiền các khoản chia ĐỦ cả nhóm + mức chia trung bình mỗi đầu người (theo tỉ lệ gia đình).
 // Dùng chung cho cả phần tổng kết và phần liệt kê số dư (renderBalanceBreakdown).
+// totalFullGroupAmount đã trừ thẳng quỹ nhóm (fundAmount) — chỉ phần còn lại mới đem chia;
+// rawFullGroupAmount là tổng CHƯA trừ quỹ, dùng để hiển thị số tiền thực đã chi.
 function fullGroupStats() {
   const fullGroupExpenses = expenses.filter(isFullGroupExpense);
-  const totalFullGroupAmount = fullGroupExpenses.reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+  const rawFullGroupAmount = fullGroupExpenses.reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+  const totalFullGroupAmount = Math.max(0, rawFullGroupAmount - fundAmount);
   const totalIndividuals = members.reduce((sum, m) => sum + familySizeOf(m.name), 0);
   const avgPerPerson = totalIndividuals > 0 ? totalFullGroupAmount / totalIndividuals : 0;
 
@@ -446,7 +474,7 @@ function fullGroupStats() {
   const shares = splitFairly(totalFullGroupAmount, members.map(m => familySizeOf(m.name)));
   members.forEach((m, i) => { fullGroupOwedByName[m.name] = shares[i] || 0; });
 
-  return { fullGroupExpenses, totalFullGroupAmount, totalIndividuals, avgPerPerson, fullGroupOwedByName };
+  return { fullGroupExpenses, rawFullGroupAmount, totalFullGroupAmount, totalIndividuals, avgPerPerson, fullGroupOwedByName };
 }
 
 // ---------- Tổng kết chia tiền (chia đều cả nhóm vs. chia riêng) ----------
@@ -454,11 +482,15 @@ function renderExpenseBreakdown() {
   const totalAmount = expenses.reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
   document.getElementById('expense-total').textContent = fmtMoney(totalAmount);
 
-  const { fullGroupExpenses, totalFullGroupAmount, totalIndividuals, avgPerPerson } = fullGroupStats();
+  const { fullGroupExpenses, rawFullGroupAmount, totalFullGroupAmount, totalIndividuals, avgPerPerson } = fullGroupStats();
   const partialExpenses = expensesNewestFirst().filter(x => !isFullGroupExpense(x));
   const totalPartialAmount = partialExpenses.reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
-  document.getElementById('expense-total-full').textContent = fmtMoney(totalFullGroupAmount);
+  document.getElementById('expense-total-full').textContent = fmtMoney(rawFullGroupAmount);
   document.getElementById('expense-total-partial').textContent = fmtMoney(totalPartialAmount);
+
+  const fundNetLine = document.getElementById('fund-net-line');
+  fundNetLine.hidden = fundAmount <= 0;
+  document.getElementById('fund-net-amount').textContent = fmtMoney(totalFullGroupAmount);
 
   const avgLine = document.getElementById('full-group-avg-tile');
   avgLine.hidden = fullGroupExpenses.length === 0 || totalIndividuals === 0;
@@ -492,6 +524,8 @@ function renderBalances() {
   const owed = {};
   members.forEach(m => { paid[m.name] = 0; paidFullGroup[m.name] = 0; paidPartial[m.name] = 0; owed[m.name] = 0; });
 
+  const fundRatio = fullGroupRatio();
+
   expenses.forEach(x => {
     const amount = Number(x.amount) || 0;
     const participants = participantsOf(x);
@@ -508,10 +542,13 @@ function renderBalances() {
     // tất cả thành viên (chia đều cả nhóm). Nếu chỉ check một phần thành viên, chia đều
     // cho riêng những người đó (xem thêm bảng "Khoản chia riêng").
     if (isFullGroupExpense(x)) {
+      // Quỹ nhóm trừ thẳng vào tổng chi chung: nhân khoản chi với fundRatio trước khi chia
+      // theo tỉ lệ gia đình, để tổng owed luôn khớp đúng (tổng chi chung − quỹ).
+      const effectiveAmount = amount * fundRatio;
       const totalPeople = participants.reduce((sum, p) => sum + familySizeOf(p), 0);
       participants.forEach(p => {
         if (owed[p] === undefined) owed[p] = 0;
-        owed[p] += totalPeople > 0 ? amount * familySizeOf(p) / totalPeople : amount / participants.length;
+        owed[p] += totalPeople > 0 ? effectiveAmount * familySizeOf(p) / totalPeople : effectiveAmount / participants.length;
       });
     } else {
       const share = amount / participants.length;
@@ -539,6 +576,9 @@ function renderBalances() {
 
 // Nợ "thô" giữa từng cặp người, tính trực tiếp từ mỗi khoản chi: ai nợ ai và bao nhiêu,
 // CHƯA gộp/tối giản qua nhiều người (khác với computeSettlements ở dưới).
+// Cố ý KHÔNG trừ quỹ ở đây (dùng số amount gốc): quỹ là một khoản giảm trừ chung, không
+// gắn với một người trả cụ thể nào, nên không thể quy thẳng vào từng cặp người — pairwiseFormula()
+// sẽ co giãn tỉ lệ các khoản hiển thị bên dưới để vẫn cộng đúng ra tổng đã trừ quỹ.
 function computePairwiseDebts() {
   const owedTo = {}; // owedTo[người nợ][người được trả] = số tiền
   expenses.forEach(x => {
@@ -641,8 +681,13 @@ function renderBalanceBreakdown(balances) {
       : netToPay < -0.5 ? pairwiseDebts.filter(p => p.to === name)
       : [];
     if (pairs.length < 2) return '';
+    // pairwiseDebts tính trên số tiền GỐC (chưa trừ quỹ) vì quỹ không gắn với người trả cụ
+    // thể nào. Co giãn đều các khoản theo cùng 1 tỉ lệ để tổng luôn khớp đúng netToPay
+    // (đã trừ quỹ) — vẫn giữ đúng tỉ trọng nợ giữa từng người, chỉ khác về độ lớn.
+    const rawTotal = pairs.reduce((sum, p) => sum + p.amount, 0);
+    const scale = rawTotal > 0 ? Math.abs(netToPay) / rawTotal : 1;
     const otherKey = netToPay > 0.5 ? 'to' : 'from';
-    const terms = pairs.map(p => `${fmtMoney(p.amount)} (${escapeHtml(p[otherKey])})`).join(' + ');
+    const terms = pairs.map(p => `${fmtMoney(p.amount * scale)} (${escapeHtml(p[otherKey])})`).join(' + ');
     return `
       <div class="balance-row balance-row-pairwise">
         <span class="balance-row-name"></span>
