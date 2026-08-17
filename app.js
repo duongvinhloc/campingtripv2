@@ -2,15 +2,10 @@
 let members = [];
 let tasks = [];
 let expenses = [];
+let fund = []; // Các khoản góp quỹ trước chuyến đi — lưu trên Google Sheet, chung cho cả nhóm.
 let taskFilterAssignee = '';
 const UNASSIGNED_FILTER_VALUE = '__unassigned__';
 const UNASSIGNED_LABEL = 'Chưa phân công';
-
-// Quỹ nhóm đã góp trước (VD: mỗi người góp sẵn 1 khoản trước chuyến đi). Chỉ nhập trên màn
-// hình và tính bằng JS — không qua api.js/Google Sheet — nên chỉ hiện trên máy đã nhập,
-// không đồng bộ cho người khác trong nhóm.
-const FUND_STORAGE_KEY = 'campingFundAmount';
-let fundAmount = Math.max(0, Number(localStorage.getItem(FUND_STORAGE_KEY)) || 0);
 
 // Poll version (rẻ, chỉ 1 số) thường xuyên hơn hẳn; chỉ tải lại toàn bộ data khi version đổi.
 const VERSION_POLL_INTERVAL_MS = 4000;
@@ -90,6 +85,7 @@ async function loadAll() {
     members = await api.list('Members');
     tasks = await api.list('Tasks');
     expenses = await api.list('Expenses');
+    fund = await api.list('Fund');
     renderMembers();
     renderTaskAssigneeOptions();
     renderTaskFilterOptions();
@@ -98,6 +94,7 @@ async function loadAll() {
     renderExpensePayerOptions();
     renderExpenseParticipantOptions();
     renderExpenses();
+    renderFund();
     renderExpenseBreakdown();
     renderBalances();
     setStatus('Đã cập nhật ' + new Date().toLocaleTimeString('vi-VN'));
@@ -349,6 +346,54 @@ function isFullGroupExpense(x) {
     members.every(m => participants.includes(m.name));
 }
 
+// ---------- Quỹ nhóm ----------
+function fundTotalAmount() {
+  return fund.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+}
+
+function fundNewestFirst() {
+  return [...fund].sort((a, b) => Number(b.id) - Number(a.id));
+}
+
+function renderFund() {
+  const list = document.getElementById('fund-list');
+  const empty = document.getElementById('fund-empty');
+  list.innerHTML = '';
+  empty.hidden = fund.length > 0;
+  fundNewestFirst().forEach(f => {
+    const li = document.createElement('li');
+    const label = [fmtMoney(f.amount), f.note].filter(Boolean).join(' — ');
+    const span = document.createElement('span');
+    span.textContent = label || fmtMoney(f.amount);
+    li.appendChild(span);
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Xoá';
+    delBtn.className = 'row-delete';
+    delBtn.addEventListener('click', async () => {
+      if (!confirm('Xoá khoản góp quỹ này?')) return;
+      syncVersionFrom_(await api.remove('Fund', f.id));
+      await loadAll();
+    });
+    li.appendChild(delBtn);
+    list.appendChild(li);
+  });
+  document.getElementById('fund-total-line').textContent = fmtMoney(fundTotalAmount());
+}
+
+document.getElementById('fund-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const amount = Number(document.getElementById('fund-amount-input').value);
+  const note = document.getElementById('fund-note').value.trim();
+  if (!amount) return;
+  syncVersionFrom_(await api.add('Fund', {
+    amount,
+    note,
+    date: new Date().toISOString().slice(0, 10),
+  }));
+  e.target.reset();
+  await loadAll();
+});
+
 // Tỉ lệ còn lại của các khoản chi CHUNG cả nhóm sau khi trừ thẳng quỹ đã góp trước
 // (quỹ chỉ áp dụng lên phần chia đều cả nhóm, không đụng tới các khoản chia riêng).
 // Nhân mỗi khoản chi chung với tỉ lệ này trước khi chia theo tỉ lệ gia đình, để tổng owed
@@ -356,17 +401,8 @@ function isFullGroupExpense(x) {
 function fullGroupRatio() {
   const raw = expenses.filter(isFullGroupExpense).reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
   if (raw <= 0) return 1;
-  return Math.max(0, raw - fundAmount) / raw;
+  return Math.max(0, raw - fundTotalAmount()) / raw;
 }
-
-const fundInput = document.getElementById('fund-amount');
-fundInput.value = fundAmount || '';
-fundInput.addEventListener('input', () => {
-  fundAmount = Math.max(0, Number(fundInput.value) || 0);
-  localStorage.setItem(FUND_STORAGE_KEY, String(fundAmount));
-  renderExpenseBreakdown();
-  renderBalances();
-});
 
 const SELF_PAID_KEY = '__self__';
 
@@ -458,12 +494,12 @@ function splitFairly(total, weights) {
 
 // Tổng số tiền các khoản chia ĐỦ cả nhóm + mức chia trung bình mỗi đầu người (theo tỉ lệ gia đình).
 // Dùng chung cho cả phần tổng kết và phần liệt kê số dư (renderBalanceBreakdown).
-// totalFullGroupAmount đã trừ thẳng quỹ nhóm (fundAmount) — chỉ phần còn lại mới đem chia;
+// totalFullGroupAmount đã trừ thẳng quỹ nhóm (fundTotalAmount()) — chỉ phần còn lại mới đem chia;
 // rawFullGroupAmount là tổng CHƯA trừ quỹ, dùng để hiển thị số tiền thực đã chi.
 function fullGroupStats() {
   const fullGroupExpenses = expenses.filter(isFullGroupExpense);
   const rawFullGroupAmount = fullGroupExpenses.reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
-  const totalFullGroupAmount = Math.max(0, rawFullGroupAmount - fundAmount);
+  const totalFullGroupAmount = Math.max(0, rawFullGroupAmount - fundTotalAmount());
   const totalIndividuals = members.reduce((sum, m) => sum + familySizeOf(m.name), 0);
   const avgPerPerson = totalIndividuals > 0 ? totalFullGroupAmount / totalIndividuals : 0;
 
@@ -488,8 +524,9 @@ function renderExpenseBreakdown() {
   document.getElementById('expense-total-full').textContent = fmtMoney(rawFullGroupAmount);
   document.getElementById('expense-total-partial').textContent = fmtMoney(totalPartialAmount);
 
+  document.getElementById('fund-total').textContent = fmtMoney(fundTotalAmount());
   const fundNetLine = document.getElementById('fund-net-line');
-  fundNetLine.hidden = fundAmount <= 0;
+  fundNetLine.hidden = fundTotalAmount() <= 0;
   document.getElementById('fund-net-amount').textContent = fmtMoney(totalFullGroupAmount);
 
   const avgLine = document.getElementById('full-group-avg-tile');
